@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rashmon.dev — Build. Ship. Sleep. Repeat.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --black: #000;
+            --white: #fff;
+            --gray-dim: #888;
+            --gray-border: #1a1a1a;
+            --gray-card: #0a0a0a;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--black);
+            color: var(--white);
+            font-family: 'DM Sans', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* ---- CURSOR (desktop only) ---- */
+        @media (pointer: fine) {
+            body { cursor: none; }
+            .cursor, .cursor-ring { display: block; }
+        }
+        .cursor {
+            display: none;
+            width: 9px; height: 9px;
+            background: white;
+            border-radius: 50%;
+            position: fixed; top: 0; left: 0;
+            pointer-events: none; z-index: 9999;
+            mix-blend-mode: difference;
+        }
+        .cursor-ring {
+            display: none;
+            width: 34px; height: 34px;
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 50%;
+            position: fixed; top: 0; left: 0;
+            pointer-events: none; z-index: 9998;
+            mix-blend-mode: difference;
+            transition: width .2s, height .2s, border-color .2s;
+        }
+
+        /* ---- DISPLAY FONT ---- */
+        .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.02em; line-height: .92; }
+
+        /* ---- DIVIDER ---- */
+        .divider { height: 1px; background: var(--gray-border); }
+
+        /* ---- NAV LINK ---- */
+        .nav-link {
+            position: relative; color: var(--gray-dim);
+            font-size: .75rem; letter-spacing: .12em;
+            text-transform: uppercase; text-decoration: none;
+            transition: color .3s;
+        }
+        .nav-link::after {
+            content: ''; position: absolute;
+            width: 100%; height: 1px; bottom: -4px; left: 0;
+            background: white; transform: scaleX(0);
+            transform-origin: right; transition: transform .3s ease;
+        }
+        .nav-link:hover { color: white; }
+        .nav-link:hover::after { transform: scaleX(1); transform-origin: left; }
+
+        /* ---- MOBILE NAV ---- */
+        #mobile-menu {
+            display: none;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 2rem 1.5rem;
+            background: #050505;
+            border-top: 1px solid var(--gray-border);
+        }
+        #mobile-menu.open { display: flex; }
+        .mobile-nav-link {
+            color: var(--gray-dim); font-size: 1.1rem;
+            text-decoration: none; letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        /* ---- HERO CANVAS ---- */
+        #hero-canvas {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0; opacity: .07;
+        }
+
+        /* ---- SCROLL REVEAL ---- */
+        .reveal {
+            opacity: 0; transform: translateY(22px);
+            transition: opacity .7s ease, transform .7s ease;
+        }
+        .reveal.visible { opacity: 1; transform: none; }
+        .reveal.d1 { transition-delay: .1s; }
+        .reveal.d2 { transition-delay: .2s; }
+        .reveal.d3 { transition-delay: .3s; }
+
+        /* ---- STATUS DOT ---- */
+        .dot {
+            width: 8px; height: 8px; background: #22c55e;
+            border-radius: 50%; display: inline-block;
+            animation: pulse 2.2s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+        /* ---- CTA ---- */
+        .cta {
+            display: inline-block; padding: 13px 30px;
+            background: white; color: black;
+            font-weight: 600; font-size: .85rem;
+            letter-spacing: .05em; border-radius: 8px;
+            text-decoration: none;
+            transition: background .2s, transform .2s;
+            border: none;
+        }
+        .cta:hover { background: #e2e2e2; transform: translateY(-2px); }
+        .cta-ghost {
+            display: inline-block; padding: 12px 28px;
+            border: 1px solid #333; color: white;
+            font-size: .85rem; letter-spacing: .05em;
+            border-radius: 8px; text-decoration: none;
+            transition: border-color .2s, transform .2s;
+        }
+        .cta-ghost:hover { border-color: #777; transform: translateY(-2px); }
+
+        /* ---- MARQUEE ---- */
+        .marquee-wrap { overflow: hidden; }
+        .marquee-track {
+            display: flex; gap: 3rem; width: max-content;
+            animation: marquee 22s linear infinite;
+        }
+        @keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+        /* ---- PROJECT CARD ---- */
+        .project-card {
+            border: 1px solid var(--gray-border);
+            background: var(--gray-card);
+            border-radius: 14px; overflow: hidden;
+            text-decoration: none; color: white;
+            display: flex; flex-direction: column;
+            transition: border-color .3s, transform .3s;
+        }
+        .project-card:hover { border-color: #3a3a3a; transform: translateY(-5px); }
+
+        .project-thumb {
+            width: 100%; aspect-ratio: 16/9;
+            object-fit: cover; object-position: top;
+            border-bottom: 1px solid var(--gray-border);
+            background: #111;
+            display: block;
+        }
+
+        /* placeholder shown while img loads */
+        .thumb-placeholder {
+            width: 100%; aspect-ratio: 16/9;
+            background: #111;
+            border-bottom: 1px solid var(--gray-border);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .tag {
+            display: inline-block; font-size: .62rem;
+            letter-spacing: .1em; text-transform: uppercase;
+            border: 1px solid #2a2a2a; padding: 3px 9px;
+            border-radius: 99px; color: #666;
+        }
+
+        /* ---- STACK PILL ---- */
+        .stack-pill {
+            display: flex; align-items: center; gap: 10px;
+            border: 1px solid #1e1e1e; background: #0d0d0d;
+            border-radius: 10px; padding: 14px 18px;
+            transition: border-color .3s, background .3s;
+        }
+        .stack-pill:hover { border-color: #444; background: #111; }
+        .stack-pill img { width: 26px; height: 26px; object-fit: contain; }
+
+        /* ---- CONTACT INPUT ---- */
+        .c-input {
+            width: 100%; padding: 14px 16px;
+            background: #0a0a0a; border: 1px solid #1f1f1f;
+            border-radius: 8px; color: white;
+            font-family: 'DM Sans', sans-serif;
+            font-size: .9rem; outline: none;
+            transition: border-color .3s;
+        }
+        .c-input:focus { border-color: #555; }
+        .c-input::placeholder { color: #3a3a3a; }
+
+        /* ---- ABOUT PHOTO ---- */
+        .photo-slot {
+            width: 100%; aspect-ratio: 3/4;
+            border: 1px dashed #2a2a2a;
+            border-radius: 14px;
+            background: #080808;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 10px; color: #333;
+            font-size: .8rem; letter-spacing: .08em;
+            text-transform: uppercase;
+            overflow: hidden;
+            position: relative;
+        }
+        .photo-slot img {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover; border-radius: 14px;
+        }
+        .photo-slot input[type="file"] {
+            position: absolute; inset: 0;
+            opacity: 0; cursor: pointer; width: 100%; height: 100%;
+        }
+
+        /* ---- RESPONSIVE HELPERS ---- */
+        @media (max-width: 768px) {
+            .hide-mobile { display: none !important; }
+            .show-mobile { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+            .show-mobile { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Cursor -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- ===================== NAVBAR ===================== -->
+<header style="position:sticky;top:0;z-index:50;background:rgba(0,0,0,0.93);backdrop-filter:blur(14px);">
+    <div style="max-width:1200px;margin:0 auto;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+        <a href="#hero" style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:.12em;color:white;text-decoration:none;">RASHMON.DEV</a>
+
+        <!-- Desktop nav -->
+        <nav class="hide-mobile" style="display:flex;gap:2.5rem;">
+            <a href="#about" class="nav-link">About</a>
+            <a href="#projects" class="nav-link">Work</a>
+            <a href="#stack" class="nav-link">Stack</a>
+            <a href="#contact" class="nav-link">Contact</a>
+        </nav>
+
+        <!-- Hamburger -->
+        <button class="show-mobile" id="burger" aria-label="Menu"
+            style="background:none;border:none;color:white;cursor:pointer;flex-direction:column;gap:5px;padding:4px;">
+            <span style="display:block;width:22px;height:1px;background:white;"></span>
+            <span style="display:block;width:22px;height:1px;background:white;"></span>
+            <span style="display:block;width:14px;height:1px;background:white;"></span>
+        </button>
+    </div>
+
+    <!-- Mobile menu -->
+    <div id="mobile-menu">
+        <a href="#about" class="mobile-nav-link" onclick="closeMobileMenu()">About</a>
+        <a href="#projects" class="mobile-nav-link" onclick="closeMobileMenu()">Work</a>
+        <a href="#stack" class="mobile-nav-link" onclick="closeMobileMenu()">Stack</a>
+        <a href="#contact" class="mobile-nav-link" onclick="closeMobileMenu()">Contact</a>
+    </div>
+    <div class="divider"></div>
+</header>
+
+<!-- ===================== HERO ===================== -->
+<section id="hero" style="position:relative;min-height:92vh;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:2rem;">
+    <canvas id="hero-canvas"></canvas>
+    <div style="position:relative;z-index:10;text-align:center;max-width:960px;width:100%;">
+
+        <div class="reveal" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2rem;">
+            <span class="dot"></span>
+            <span style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:#555;">Available for freelance work</span>
+        </div>
+
+        <h1 class="display reveal d1" style="font-size:clamp(3.5rem,13vw,10rem);color:white;">
+            Build.<br/>Ship.<br/>Sleep.<br/>Repeat.
+        </h1>
+
+        <p class="reveal d2" style="margin-top:1.75rem;font-size:clamp(.95rem,2vw,1.1rem);color:#555;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.75;">
+            Self-taught frontend developer. I build interfaces that look right, load fast, and actually convert.
+        </p>
+
+        <div class="reveal d3" style="margin-top:2.5rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+            <a href="#projects" class="cta">View My Work</a>
+            <a href="#contact" class="cta-ghost">Let's Build Together</a>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== MARQUEE ===================== -->
+<div class="marquee-wrap" style="padding:18px 0;border-bottom:1px solid #111;">
+    <div class="marquee-track" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:.15em;color:#2a2a2a;">
+        <span>HTML & CSS</span><span style="color:#111;">·</span>
+        <span>JAVASCRIPT</span><span style="color:#111;">·</span>
+        <span>REACT OTW</span><span style="color:#111;">·</span>
+        <span>GITHUB</span><span style="color:#111;">·</span>
+        <span>FIGMA</span><span style="color:#111;">·</span>
+        <span>WEBFLOW</span><span style="color:#111;">·</span>
+        <span>WEB3</span><span style="color:#111;">·</span>
+        <span>SDR</span><span style="color:#111;">·</span>
+        <span>BUILD IN PUBLIC</span><span style="color:#111;">·</span>
+        <span>HTML & CSS</span><span style="color:#111;">·</span>
+        <span>JAVASCRIPT</span><span style="color:#111;">·</span>
+        <span>REACT OTW</span><span style="color:#111;">·</span>
+        <span>GITHUB</span><span style="color:#111;">·</span>
+        <span>FIGMA</span><span style="color:#111;">·</span>
+        <span>WEBFLOW</span><span style="color:#111;">·</span>
+        <span>WEB3</span><span style="color:#111;">·</span>
+        <span>SDR</span><span style="color:#111;">·</span>
+        <span>BUILD IN PUBLIC</span><span style="color:#111;">·</span>
+    </div>
+</div>
+
+<!-- ===================== ABOUT ===================== -->
+<section id="about" style="padding:6rem 1.5rem;">
+    <div style="max-width:1100px;margin:0 auto;">
+        <p class="reveal" style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:#444;margin-bottom:1rem;">001 — About</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:4rem;align-items:start;">
+
+            <!-- Photo -->
+            <div class="reveal" style="max-width:340px;">
+                <div class="photo-slot" id="photoSlot" style="border:1px solid #2a2a2a;">
+                    <img src="https://pbs.twimg.com/profile_images/1975718760557264896/AdJy3NJW_400x400.jpg" alt="Rashmon" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px;">
+                </div>
+            </div>
+
+            <!-- Text -->
+            <div class="reveal d1">
+                <h2 class="display" style="font-size:clamp(2.5rem,5vw,4rem);margin-bottom:1.75rem;">The Builder</h2>
+
+                <p style="font-size:1rem;color:#888;line-height:1.85;margin-bottom:1.25rem;">
+                    I'm Anjola — frontend developer, SDR, and chronic builder. I treat every website like a product: it has to look right, load fast, and <em style="color:white;font-style:normal;">actually convert.</em>
+                </p>
+                <p style="font-size:1rem;color:#888;line-height:1.85;margin-bottom:1.25rem;">
+                    My stack is HTML, CSS, and JavaScript. React is next. I also move in Web3 and understand sales — so when I build for you, I'm thinking about your user <em style="color:white;font-style:normal;">and</em> your pipeline.
+                </p>
+                <p style="font-size:1rem;color:#888;line-height:1.85;">
+                    Documenting everything publicly. The wins, the bugs, the "why isn't this working at 2am" moments. Find me daily on <a href="https://x.com/he_is_rashmon" target="_blank" style="color:white;text-decoration:none;border-bottom:1px solid #333;">@he_is_rashmon</a>.
+                </p>
+
+                <div style="display:flex;gap:2.5rem;margin-top:2rem;flex-wrap:wrap;">
+                    <div>
+                        <p class="display" style="font-size:2.5rem;">5+</p>
+                        <p style="font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:#444;margin-top:3px;">Live Projects</p>
+                    </div>
+                    <div>
+                        <p class="display" style="font-size:2.5rem;">100%</p>
+                        <p style="font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:#444;margin-top:3px;">Self-Taught</p>
+                    </div>
+                    <div>
+                        <p class="display" style="font-size:2.5rem;">∞</p>
+                        <p style="font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:#444;margin-top:3px;">Iterations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== PROJECTS ===================== -->
+<section id="projects" style="padding:6rem 1.5rem;">
+    <div style="max-width:1200px;margin:0 auto;">
+
+        <div class="reveal" style="margin-bottom:3.5rem;">
+            <p style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:#444;margin-bottom:1rem;">002 — Work</p>
+            <h2 class="display" style="font-size:clamp(2.5rem,6vw,4.5rem);">Real Projects.<br/>Real Code.</h2>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem;">
+
+            <!-- Item 7 -->
+            <a href="https://uk-item7.netlify.app" target="_blank" class="project-card reveal">
+                <img class="project-thumb"
+                    src="https://api.microlink.io/?url=https://uk-item7.netlify.app&screenshot=true&meta=false&embed=screenshot.url"
+                    alt="Item 7 screenshot"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="thumb-placeholder" style="display:none;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#222;">ITEM 7</span>
+                </div>
+                <div style="padding:1.4rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem;">
+                        <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JS</span><span class="tag">Restaurant</span>
+                    </div>
+                    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem;">Item 7 — Lagos Restaurant</h3>
+                    <p style="font-size:.85rem;color:#555;line-height:1.65;flex:1;">Full restaurant landing page — menu filtering, gallery, locations, and testimonials for a premium Nigerian food brand.</p>
+                    <div style="margin-top:1.2rem;font-size:.75rem;color:#444;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px;">View Live <span>→</span></div>
+                </div>
+            </a>
+
+            <!-- Monochrome -->
+            <a href="https://monochrome-clothing.netlify.app" target="_blank" class="project-card reveal d1">
+                <img class="project-thumb"
+                    src="https://api.microlink.io/?url=https://monochrome-clothing.netlify.app&screenshot=true&meta=false&embed=screenshot.url"
+                    alt="Monochrome Clothing screenshot"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="thumb-placeholder" style="display:none;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#222;">MOMCHOME</span>
+                </div>
+                <div style="padding:1.4rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem;">
+                        <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JS</span><span class="tag">Fashion</span>
+                    </div>
+                    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem;">Monochrome Clothing</h3>
+                    <p style="font-size:.85rem;color:#555;line-height:1.65;flex:1;">Editorial fashion storefront with product carousel and minimalist design language for a modern clothing brand.</p>
+                    <div style="margin-top:1.2rem;font-size:.75rem;color:#444;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px;">View Live <span>→</span></div>
+                </div>
+            </a>
+
+            <!-- Lumiere -->
+            <a href="https://lumiere-pi-six.vercel.app" target="_blank" class="project-card reveal d2">
+                <img class="project-thumb"
+                    src="https://api.microlink.io/?url=https://lumiere-pi-six.vercel.app&screenshot=true&meta=false&embed=screenshot.url"
+                    alt="Lumiere screenshot"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="thumb-placeholder" style="display:none;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#222;">LUMIERE</span>
+                </div>
+                <div style="padding:1.4rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem;">
+                        <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JS</span>
+                    </div>
+                    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem;">Lumiere</h3>
+                    <p style="font-size:.85rem;color:#555;line-height:1.65;flex:1;">Production-grade landing page with intentional design decisions — clean layout, purposeful motion, clear conversion flow.</p>
+                    <div style="margin-top:1.2rem;font-size:.75rem;color:#444;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px;">View Live <span>→</span></div>
+                </div>
+            </a>
+
+            <!-- Crypto Trading Dashboard -->
+            <a href="https://trading-veiw.vercel.app/" target="_blank" class="project-card reveal">
+                <img class="project-thumb"
+                    src="https://api.microlink.io/?url=https://trading-veiw.vercel.app&screenshot=true&meta=false&embed=screenshot.url"
+                    alt="Crypto Dashboard screenshot"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="thumb-placeholder" style="display:none;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#222;">CRYPTO DASH</span>
+                </div>
+                <div style="padding:1.4rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem;">
+                        <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JS</span><span class="tag">Web3</span><span class="tag">API</span>
+                    </div>
+                    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem;">Crypto Trading Dashboard</h3>
+                    <p style="font-size:.85rem;color:#555;line-height:1.65;flex:1;">Fullstack crypto marketplace pulling live market data — coin charts, trending assets, and real-time market cap stats.</p>
+                    <div style="margin-top:1.2rem;font-size:.75rem;color:#444;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px;">View Live <span>→</span></div>
+                </div>
+            </a>
+
+            <!-- Starbucks Clone -->
+            <a href="https://starbuck-beta.vercel.app/" target="_blank" class="project-card reveal d1">
+                <img class="project-thumb"
+                    src="https://api.microlink.io/?url=https://starbuck-beta.vercel.app&screenshot=true&meta=false&embed=screenshot.url"
+                    alt="Starbucks Clone screenshot"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="thumb-placeholder" style="display:none;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#222;">STARBUCKS</span>
+                </div>
+                <div style="padding:1.4rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem;">
+                        <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JS</span><span class="tag">Clone</span>
+                    </div>
+                    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem;">Starbucks — UI Clone</h3>
+                    <p style="font-size:.85rem;color:#555;line-height:1.65;flex:1;">Pixel-accurate Starbucks website clone. Full nav, seasonal promos, responsive layout — built to sharpen UI precision skills.</p>
+                    <div style="margin-top:1.2rem;font-size:.75rem;color:#444;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px;">View Live <span>→</span></div>
+                </div>
+            </a>
+
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== STACK ===================== -->
+<section id="stack" style="padding:6rem 1.5rem;">
+    <div style="max-width:900px;margin:0 auto;">
+        <div class="reveal" style="margin-bottom:3.5rem;">
+            <p style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:#444;margin-bottom:1rem;">003 — Stack</p>
+            <h2 class="display" style="font-size:clamp(2.5rem,6vw,4rem);">Tools I Use.<br/>Problems I Solve.</h2>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.9rem;">
+
+            <div class="stack-pill reveal">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/html5/html5-original.svg" alt="HTML5">
+                <div><p style="font-weight:500;font-size:.9rem;">HTML5</p><p style="font-size:.72rem;color:#444;margin-top:2px;">Semantic & Accessible</p></div>
+            </div>
+
+            <div class="stack-pill reveal d1">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/css3/css3-original.svg" alt="CSS3">
+                <div><p style="font-weight:500;font-size:.9rem;">CSS3</p><p style="font-size:.72rem;color:#444;margin-top:2px;">Grid, Flex, Custom Props</p></div>
+            </div>
+
+            <div class="stack-pill reveal d2">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" alt="JavaScript">
+                <div><p style="font-weight:500;font-size:.9rem;">JavaScript</p><p style="font-size:.72rem;color:#444;margin-top:2px;">Vanilla & ES6+</p></div>
+            </div>
+
+            <div class="stack-pill reveal">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React">
+                <div><p style="font-weight:500;font-size:.9rem;">React</p><p style="font-size:.72rem;color:#22c55e;margin-top:2px;">On The Way 🚀</p></div>
+            </div>
+
+            <div class="stack-pill reveal d1">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" style="filter:invert(1);">
+                <div><p style="font-weight:500;font-size:.9rem;">GitHub</p><p style="font-size:.72rem;color:#444;margin-top:2px;">Version Control</p></div>
+            </div>
+
+            <div class="stack-pill reveal d2">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg" alt="Figma">
+                <div><p style="font-weight:500;font-size:.9rem;">Figma</p><p style="font-size:.72rem;color:#444;margin-top:2px;">Hi-Fi Prototyping</p></div>
+            </div>
+
+            <div class="stack-pill reveal">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-plain.svg" alt="Tailwind" onerror="this.src='https://www.svgrepo.com/show/374118/tailwind.svg'">
+                <div><p style="font-weight:500;font-size:.9rem;">Tailwind</p><p style="font-size:.72rem;color:#444;margin-top:2px;">Utility-First CSS</p></div>
+            </div>
+
+            <div class="stack-pill reveal d1">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" alt="Git">
+                <div><p style="font-weight:500;font-size:.9rem;">Git</p><p style="font-size:.72rem;color:#444;margin-top:2px;">Source Control</p></div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== CONTACT ===================== -->
+<section id="contact" style="padding:6rem 1.5rem;">
+    <div style="max-width:600px;margin:0 auto;">
+        <div class="reveal" style="text-align:center;margin-bottom:3rem;">
+            <p style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:#444;margin-bottom:1rem;">004 — Contact</p>
+            <h2 class="display" style="font-size:clamp(2.5rem,6vw,4rem);">Let's Build<br/>Something Real.</h2>
+            <p style="margin-top:1rem;color:#555;font-size:.95rem;line-height:1.75;">Got a project? A brief? Just want to talk code or conversion? I'm here.</p>
+        </div>
+
+        <form class="reveal d1" id="contactForm" style="display:flex;flex-direction:column;gap:1rem;"
+              action="https://formspree.io/f/movwbewz" method="POST" onsubmit="handleSubmit(event)">
+            <input type="text" name="name" placeholder="Your name or company" class="c-input" required>
+            <input type="email" name="email" placeholder="Your email" class="c-input" required>
+            <textarea name="message" placeholder="What are we building?" rows="5" class="c-input" style="resize:vertical;" required></textarea>
+            <button type="submit" id="submitBtn" class="cta" style="width:100%;text-align:center;font-size:.9rem;">Send It →</button>
+        </form>
+        <p id="formSuccess" style="display:none;text-align:center;color:#22c55e;font-size:.9rem;margin-top:1rem;letter-spacing:.05em;">Message sent! I'll get back to you soon 🤝</p>
+
+        <div class="reveal d2" style="margin-top:3rem;text-align:center;">
+            <p style="font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:#2a2a2a;margin-bottom:1.5rem;">Find me on</p>
+            <div style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;">
+                <a href="https://x.com/he_is_rashmon" target="_blank" style="color:#444;font-size:.85rem;text-decoration:none;transition:color .2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#444'">X (Twitter)</a>
+                <a href="https://www.linkedin.com/in/anjola-rasheed-5020843b7/?lipi=urn%3Ali%3Apage%3Ad_flagship3_feed%3B9QQ7Ta3aSj%2BWyuQ7cVeGnw%3D%3D" target="_blank" style="color:#444;font-size:.85rem;text-decoration:none;transition:color .2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#444'">Linkeldn</a>
+                <a href="https://tiktok.com/@rashmon.devv" target="_blank" style="color:#444;font-size:.85rem;text-decoration:none;transition:color .2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#444'">TikTok</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer style="border-top:1px solid #111;padding:2rem 1.5rem;text-align:center;">
+    <p style="font-size:.7rem;color:#2a2a2a;letter-spacing:.08em;">© 2025 RASHMON.DEV — Build. Ship. Sleep. Repeat.</p>
+</footer>
+
+
+<!-- ===================== SCRIPTS ===================== -->
+<script>
+    // ---- CONTACT FORM ----
+    async function handleSubmit(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.textContent = 'Sending...';
+        btn.style.opacity = '.6';
+        const form = document.getElementById('contactForm');
+        const data = new FormData(form);
+        try {
+            const res = await fetch(form.action, { method: 'POST', body: data, headers: { 'Accept': 'application/json' } });
+            if (res.ok) {
+                form.style.display = 'none';
+                document.getElementById('formSuccess').style.display = 'block';
+            } else {
+                btn.textContent = 'Something went wrong — try again';
+                btn.style.opacity = '1';
+            }
+        } catch {
+            btn.textContent = 'Something went wrong — try again';
+            btn.style.opacity = '1';
+        }
+    }
+
+
+    const burger = document.getElementById('burger');
+    const mobileMenu = document.getElementById('mobile-menu');
+    burger.addEventListener('click', () => mobileMenu.classList.toggle('open'));
+    function closeMobileMenu() { mobileMenu.classList.remove('open'); }
+
+    // ---- PHOTO UPLOAD PREVIEW ----
+    function previewPhoto(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const slot = document.getElementById('photoSlot');
+            // Remove placeholder content
+            slot.querySelectorAll('svg, span').forEach(el => el.style.display = 'none');
+            // Set background image
+            slot.style.backgroundImage = `url(${ev.target.result})`;
+            slot.style.backgroundSize = 'cover';
+            slot.style.backgroundPosition = 'center';
+            slot.style.border = '1px solid #2a2a2a';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ---- CURSOR ----
+    const cursor = document.getElementById('cursor');
+    const cursorRing = document.getElementById('cursorRing');
+    let mx = 0, my = 0, rx = 0, ry = 0;
+
+    if (window.matchMedia('(pointer: fine)').matches) {
+        document.addEventListener('mousemove', e => {
+            mx = e.clientX; my = e.clientY;
+            cursor.style.left = mx - 4.5 + 'px';
+            cursor.style.top  = my - 4.5 + 'px';
+        });
+        (function animRing() {
+            rx += (mx - rx) * 0.13;
+            ry += (my - ry) * 0.13;
+            cursorRing.style.left = rx - 17 + 'px';
+            cursorRing.style.top  = ry - 17 + 'px';
+            requestAnimationFrame(animRing);
+        })();
+    }
+
+    // ---- THREE.JS WIREFRAME ----
+    (function() {
+        const canvas = document.getElementById('hero-canvas');
+        const parent = canvas.parentElement;
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, parent.clientWidth / parent.clientHeight, 0.1, 100);
+        camera.position.z = 3;
+        renderer.setSize(parent.clientWidth, parent.clientHeight);
+
+        const geo = new THREE.IcosahedronGeometry(1.5, 1);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+        const mesh = new THREE.Mesh(geo, mat);
+        scene.add(mesh);
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(parent.clientWidth, parent.clientHeight);
+            camera.aspect = parent.clientWidth / parent.clientHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        (function animate() {
+            requestAnimationFrame(animate);
+            mesh.rotation.x += 0.0007;
+            mesh.rotation.y += 0.0014;
+            renderer.render(scene, camera);
+        })();
+    })();
+
+    // ---- SCROLL REVEAL ----
+    const obs = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.05 });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+    // ---- ABOUT SECTION: stack on mobile ----
+    function stackAbout() {
+        const grid = document.querySelector('#about > div > div[style*="grid-template-columns"]');
+        if (!grid) return;
+        if (window.innerWidth < 768) {
+            grid.style.gridTemplateColumns = '1fr';
+        } else {
+            grid.style.gridTemplateColumns = '1fr 1.6fr';
+        }
+    }
+    stackAbout();
+    window.addEventListener('resize', stackAbout);
+</script>
+
+</body>
+</html>
